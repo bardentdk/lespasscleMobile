@@ -1,12 +1,14 @@
+import React, { useEffect, useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator, StatusBar, Modal } from 'react-native';
+import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../context/AuthContext';
+import { useNotifications } from '../../context/NotificationContext';
+import { usePushNotifications } from '../../hooks/useNotifications';
+import { Calendar, Clock, User, Bell, LayoutDashboard, CheckCircle2, X } from 'lucide-react-native';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useRouter } from 'expo-router';
-import { Bell, Calendar, CheckCircle2, Clock, LayoutDashboard, User } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth } from '../../context/AuthContext';
-import { supabase } from '../../lib/supabase';
 
 interface Seance {
   id: string; title: string; date: string; start_time: string; end_time: string;
@@ -18,9 +20,15 @@ export default function Dashboard() {
   const { user } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  
+  // NOUVEAU : Initialisation des notifications
+  const { notifications, markAsRead, markAllAsRead, unreadCount } = useNotifications();
+  usePushNotifications(user?.profile?.id); // Active les pushs natifs Android
+  
   const [nextSeance, setNextSeance] = useState<Seance | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showNotifModal, setShowNotifModal] = useState(false);
 
   const fetchDashboardData = async () => {
     try {
@@ -50,16 +58,9 @@ export default function Dashboard() {
     <View className="flex-1 bg-gray-50">
       <StatusBar barStyle="light-content" />
       
-      <ScrollView 
-        className="flex-1" 
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchDashboardData(); }} tintColor="#006eb8" />}
-      >
+      <ScrollView className="flex-1" showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchDashboardData(); }} tintColor="#006eb8" />}>
         {/* HEADER */}
-        <View 
-          style={{ paddingTop: Math.max(insets.top, 20) }} 
-          className="bg-brand-600 pb-16 px-6 rounded-b-[48px] shadow-sm relative overflow-hidden"
-        >
+        <View style={{ paddingTop: Math.max(insets.top, 20) }} className="bg-brand-600 pb-16 px-6 rounded-b-[48px] shadow-sm relative overflow-hidden">
           <View className="absolute -top-24 -right-12 w-64 h-64 bg-white/10 rounded-full" />
           <View className="absolute top-12 -left-12 w-32 h-32 bg-white/5 rounded-full" />
 
@@ -72,17 +73,16 @@ export default function Dashboard() {
                 </Text>
               </View>
               <View>
-                <Text className="text-brand-100 font-bold uppercase tracking-widest text-[10px] mb-0.5">
-                  {`Espace ${user?.profile?.role || 'Utilisateur'}`}
-                </Text>
-                <Text className="text-white text-2xl font-black tracking-tight">
-                  {`Bonjour, ${user?.profile?.first_name || ''} 👋`}
-                </Text>
+                <Text className="text-brand-100 font-bold uppercase tracking-widest text-[10px] mb-0.5">Espace {user?.profile?.role}</Text>
+                <Text className="text-white text-2xl font-black tracking-tight">{`Bonjour, ${user?.profile?.first_name || ''} 👋`}</Text>
               </View>
             </View>
             
-            <TouchableOpacity className="bg-white/10 p-3 rounded-2xl border border-white/20">
-              <View className="absolute top-2 right-2 w-2 h-2 bg-accent-500 rounded-full z-20" />
+            {/* LA CLOCHE DE NOTIFICATION */}
+            <TouchableOpacity onPress={() => setShowNotifModal(true)} className="bg-white/10 p-3 rounded-2xl border border-white/20">
+              {unreadCount > 0 ? (
+                <View className="absolute top-2 right-2 w-3 h-3 bg-red-500 border-2 border-brand-600 rounded-full z-20" />
+              ) : null}
               <Bell size={22} color="white" />
             </TouchableOpacity>
           </View>
@@ -92,53 +92,26 @@ export default function Dashboard() {
         <View className="px-6 -mt-10 relative z-20">
           <View className="flex-row justify-between items-end mb-4 px-1">
             <Text className="text-xs font-black text-gray-800 uppercase tracking-widest">Prochaine séance</Text>
-            {nextSeance ? (
-              <Text className="text-[10px] font-bold text-brand-600 bg-brand-50 px-2 py-1 rounded-md">Aujourd'hui</Text>
-            ) : null}
+            {nextSeance ? <Text className="text-[10px] font-bold text-brand-600 bg-brand-50 px-2 py-1 rounded-md">Aujourd'hui</Text> : null}
           </View>
 
           {loading ? (
-            <View className="bg-white p-10 rounded-[32px] items-center justify-center shadow-lg shadow-gray-200/50 border border-gray-50">
-              <ActivityIndicator color="#006eb8" size="large" />
-            </View>
+            <View className="bg-white p-10 rounded-[32px] items-center justify-center shadow-lg shadow-gray-200/50 border border-gray-50"><ActivityIndicator color="#006eb8" size="large" /></View>
           ) : nextSeance ? (
-            <TouchableOpacity 
-              onPress={() => router.push('/planning')} 
-              activeOpacity={0.8}
-              className="bg-white rounded-[32px] shadow-xl shadow-gray-200/60 border border-gray-100 overflow-hidden"
-            >
+            <TouchableOpacity onPress={() => router.push('/planning')} activeOpacity={0.8} className="bg-white rounded-[32px] shadow-xl shadow-gray-200/60 border border-gray-100 overflow-hidden">
               <View className={`h-2 w-full ${roleColor}`} />
               <View className="p-6">
                 <Text className="text-gray-900 text-xl font-black leading-tight mb-5">{nextSeance.title}</Text>
                 <View className="bg-gray-50 rounded-2xl p-4 flex-row flex-wrap gap-y-3">
-                  <View className="w-1/2 flex-row items-center">
-                    <Clock size={16} color="#006eb8" />
-                    <Text className="text-gray-700 text-xs font-bold ml-2">
-                      {`${nextSeance.start_time.slice(0, 5)} - ${nextSeance.end_time.slice(0, 5)}`}
-                    </Text>
-                  </View>
-                  <View className="w-1/2 flex-row items-center">
-                    <Calendar size={16} color="#006eb8" />
-                    <Text className="text-gray-700 text-xs font-bold ml-2 capitalize">
-                      {format(new Date(nextSeance.date), 'EEE d MMM', { locale: fr })}
-                    </Text>
-                  </View>
-                  {nextSeance.profiles ? (
-                    <View className="w-full flex-row items-center mt-1">
-                      <User size={16} color="#94a3b8" />
-                      <Text className="text-gray-500 text-xs font-bold ml-2">
-                        {`Intervenant : ${nextSeance.profiles.first_name} ${nextSeance.profiles.last_name}`}
-                      </Text>
-                    </View>
-                  ) : null}
+                  <View className="w-1/2 flex-row items-center"><Clock size={16} color="#006eb8" /><Text className="text-gray-700 text-xs font-bold ml-2">{`${nextSeance.start_time.slice(0, 5)} - ${nextSeance.end_time.slice(0, 5)}`}</Text></View>
+                  <View className="w-1/2 flex-row items-center"><Calendar size={16} color="#006eb8" /><Text className="text-gray-700 text-xs font-bold ml-2 capitalize">{format(new Date(nextSeance.date), 'EEE d MMM', { locale: fr })}</Text></View>
+                  {nextSeance.profiles ? <View className="w-full flex-row items-center mt-1"><User size={16} color="#94a3b8" /><Text className="text-gray-500 text-xs font-bold ml-2">{`Intervenant : ${nextSeance.profiles.first_name} ${nextSeance.profiles.last_name}`}</Text></View> : null}
                 </View>
               </View>
             </TouchableOpacity>
           ) : (
             <View className="bg-white p-8 rounded-[32px] border-2 border-dashed border-gray-200 items-center justify-center">
-              <View className="bg-gray-50 p-4 rounded-full mb-3">
-                <CheckCircle2 size={32} color="#94a3b8" />
-              </View>
+              <View className="bg-gray-50 p-4 rounded-full mb-3"><CheckCircle2 size={32} color="#94a3b8" /></View>
               <Text className="text-gray-800 font-black text-center text-lg">Tout est à jour</Text>
               <Text className="text-gray-400 font-bold mt-1 text-center text-xs">Aucune séance prévue pour le moment.</Text>
             </View>
@@ -152,17 +125,48 @@ export default function Dashboard() {
         </View>
         <View className="h-10" />
       </ScrollView>
+
+      {/* MODALE DES NOTIFICATIONS */}
+      <Modal visible={showNotifModal} animationType="slide" transparent={true}>
+        <View className="flex-1 bg-black/50 justify-end">
+          <View className="bg-white rounded-t-[32px] h-[80%] overflow-hidden shadow-2xl">
+            <View className="flex-row justify-between items-center p-6 border-b border-gray-100 bg-gray-50">
+              <Text className="text-xl font-black text-gray-900">Notifications</Text>
+              <View className="flex-row items-center">
+                {unreadCount > 0 ? (
+                  <TouchableOpacity onPress={markAllAsRead} className="mr-4 bg-brand-50 px-3 py-1.5 rounded-full"><Text className="text-brand-600 text-xs font-bold">Tout marquer lu</Text></TouchableOpacity>
+                ) : null}
+                <TouchableOpacity onPress={() => setShowNotifModal(false)} className="bg-white p-2 rounded-full shadow-sm"><X size={20} color="#64748b" /></TouchableOpacity>
+              </View>
+            </View>
+            <ScrollView className="flex-1 p-6">
+              {notifications.length === 0 ? (
+                <Text className="text-center text-gray-400 font-bold mt-10">Vous n'avez aucune notification.</Text>
+              ) : (
+                notifications.map((notif) => (
+                  <TouchableOpacity key={notif.id} onPress={() => markAsRead(notif.id)} className={`p-4 rounded-2xl mb-3 border ${!notif.read ? 'bg-brand-50 border-brand-100' : 'bg-white border-gray-100'}`}>
+                    <View className="flex-row justify-between items-start">
+                      <View className="flex-1 pr-4">
+                        <Text className={`text-sm ${!notif.read ? 'font-black text-gray-900' : 'font-bold text-gray-500'}`}>{notif.title}</Text>
+                        <Text className="text-xs text-gray-500 mt-1">{notif.message}</Text>
+                      </View>
+                      {!notif.read ? <View className="w-2 h-2 bg-brand-500 rounded-full mt-1" /> : null}
+                    </View>
+                  </TouchableOpacity>
+                ))
+              )}
+              <View className="h-10" />
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 function QuickAction({ icon, label, color, onPress }: { icon: JSX.Element; label: string; color: string; onPress: () => void }) {
   return (
-    <TouchableOpacity 
-      onPress={onPress} 
-      activeOpacity={0.7}
-      className={`${color} flex-1 p-5 rounded-[28px] items-center shadow-sm border border-white justify-center h-32`}
-    >
+    <TouchableOpacity onPress={onPress} activeOpacity={0.7} className={`${color} flex-1 p-5 rounded-[28px] items-center shadow-sm border border-white justify-center h-32`}>
       <View className="bg-white p-3 rounded-2xl shadow-sm mb-3">{icon}</View>
       <Text className="text-gray-900 font-black text-[11px] uppercase tracking-tighter text-center">{label}</Text>
     </TouchableOpacity>

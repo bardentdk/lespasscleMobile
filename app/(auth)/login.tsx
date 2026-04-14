@@ -39,12 +39,15 @@ export default function Login() {
         showsVerticalScrollIndicator={false}
       >
         <View className="items-center">
-          <Image source={Logo} className="h-24 w-48 mb-10" resizeMode="contain" />
-          <View className="w-full bg-white p-8 rounded-[32px] shadow-xl shadow-slate-200 border border-gray-100">
-            <Text className="text-2xl font-black text-center uppercase tracking-tighter mb-6">Espace <Text className="text-brand-600">Léspass</Text><Text className="text-accent-500">Clé</Text></Text>
+          <View className="w-full bg-white p-5 rounded-[32px] shadow-xl shadow-slate-200 border border-gray-100">
+            <View className='items-center'>
+              <Image source={Logo} className="h-52 w-48 mb-10" resizeMode="contain" />
+            </View>
+            
+            {/* <Text className="text-2xl font-black text-center uppercase tracking-tighter mb-6">Espace <Text className="text-brand-600">Léspass</Text><Text className="text-accent-500">Clé</Text></Text> */}
             {error && <View className="bg-red-50 p-4 rounded-xl flex-row items-center mb-6"><AlertCircle size={20} color="#ef4444" /><Text className="text-red-700 text-xs font-bold ml-2 flex-1">{error}</Text></View>}
             
-            <View className="space-y-4">
+            <View className="space-y-5">
               <View>
                 <Text className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-2">Email</Text>
                 <View className="flex-row items-center bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3"><Mail size={20} color="#94a3b8" /><TextInput className="flex-1 ml-3 font-medium text-gray-900" placeholder="nom@exemple.com" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" /></View>
