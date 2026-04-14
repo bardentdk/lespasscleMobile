@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator, StatusBar, Modal } from 'react-native';
-import { supabase } from '../../lib/supabase';
+import { ActivityIndicator, Modal, RefreshControl, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { usePushNotifications } from '../../hooks/useNotifications';
-import { Calendar, Clock, User, Bell, LayoutDashboard, CheckCircle2, X } from 'lucide-react-native';
+import { supabase } from '../../lib/supabase';
+// IMPORT DES NOUVELLES ICONES ADMIN (Users, CalendarPlus)
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useRouter } from 'expo-router';
+import { Bell, Calendar, CalendarPlus, CheckCircle2, Clock, Layers, LayoutDashboard, TrendingUp, User, Users, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface Seance {
@@ -21,9 +22,8 @@ export default function Dashboard() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   
-  // NOUVEAU : Initialisation des notifications
   const { notifications, markAsRead, markAllAsRead, unreadCount } = useNotifications();
-  usePushNotifications(user?.profile?.id); // Active les pushs natifs Android
+  usePushNotifications(user?.profile?.id); 
   
   const [nextSeance, setNextSeance] = useState<Seance | null>(null);
   const [loading, setLoading] = useState(true);
@@ -59,7 +59,6 @@ export default function Dashboard() {
       <StatusBar barStyle="light-content" />
       
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchDashboardData(); }} tintColor="#006eb8" />}>
-        {/* HEADER */}
         <View style={{ paddingTop: Math.max(insets.top, 20) }} className="bg-brand-600 pb-16 px-6 rounded-b-[48px] shadow-sm relative overflow-hidden">
           <View className="absolute -top-24 -right-12 w-64 h-64 bg-white/10 rounded-full" />
           <View className="absolute top-12 -left-12 w-32 h-32 bg-white/5 rounded-full" />
@@ -78,7 +77,6 @@ export default function Dashboard() {
               </View>
             </View>
             
-            {/* LA CLOCHE DE NOTIFICATION */}
             <TouchableOpacity onPress={() => setShowNotifModal(true)} className="bg-white/10 p-3 rounded-2xl border border-white/20">
               {unreadCount > 0 ? (
                 <View className="absolute top-2 right-2 w-3 h-3 bg-red-500 border-2 border-brand-600 rounded-full z-20" />
@@ -88,7 +86,6 @@ export default function Dashboard() {
           </View>
         </View>
 
-        {/* CONTENT */}
         <View className="px-6 -mt-10 relative z-20">
           <View className="flex-row justify-between items-end mb-4 px-1">
             <Text className="text-xs font-black text-gray-800 uppercase tracking-widest">Prochaine séance</Text>
@@ -118,10 +115,24 @@ export default function Dashboard() {
           )}
 
           <Text className="text-xs font-black text-gray-800 uppercase tracking-widest px-1 mt-10 mb-4">Raccourcis</Text>
-          <View className="flex-row justify-between gap-x-4">
-            <QuickAction icon={<LayoutDashboard size={26} color="#006eb8" />} label="Mon Planning" color="bg-brand-50" onPress={() => router.push('/planning')} />
-            <QuickAction icon={<Calendar size={26} color="#f59e0b" />} label="Présences" color="bg-accent-50" onPress={() => router.push('/suivi')} />
+          <View className="flex-row justify-between gap-x-4 mb-4">
+            <QuickAction icon={<LayoutDashboard size={26} color="#006eb8" />} label={user?.profile?.role === 'admin' ? "Planning Global" : "Mon Planning"} color="bg-brand-50" onPress={() => router.push('/planning')} />
+            <QuickAction icon={<Calendar size={26} color="#f59e0b" />} label="Faire l'appel" color="bg-accent-50" onPress={() => router.push('/suivi')} />
           </View>
+
+          {/* LA ZONE SECRÈTE DE L'ADMINISTRATEUR */}
+          {user?.profile?.role === 'admin' && (
+            <View className="mt-4">
+              <Text className="text-xs font-black text-gray-800 uppercase tracking-widest px-1 mb-4">Administration</Text>
+              <View className="flex-row flex-wrap gap-4">
+                <QuickAction icon={<CalendarPlus size={26} color="#9333ea" />} label="Séances" color="bg-purple-50" onPress={() => router.push('/admin/seances')} />
+                <QuickAction icon={<Layers size={26} color="#006eb8" />} label="Groupes" color="bg-brand-50" onPress={() => router.push('/admin/groupes')} />
+                <QuickAction icon={<Users size={26} color="#16a34a" />} label="Utilisateurs" color="bg-green-50" onPress={() => router.push('/admin/users')} />
+                {/* LE NOUVEAU BOUTON : */}
+                <QuickAction icon={<TrendingUp size={26} color="#f59e0b" />} label="Bilan Global" color="bg-amber-50" onPress={() => router.push('/admin/bilan')} />
+              </View>
+            </View>
+          )}
         </View>
         <View className="h-10" />
       </ScrollView>
